@@ -9,6 +9,7 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"sync"
 )
 
 type detailOption func() proto.Message
@@ -78,7 +79,17 @@ var (
 		OrigName:     false,
 		Indent:       "    ",
 	}
+
+	lockConfig = &sync.Mutex{}
 )
+
+func Init(messageFormatJson bool) {
+	lockConfig.Lock()
+
+	messageErrorFormatJson = messageFormatJson
+
+	lockConfig.Unlock()
+}
 
 func New(c codes.Code, msg string, opts ...detailOption) pb.Response {
 	statusResp := status.New(c, msg)
