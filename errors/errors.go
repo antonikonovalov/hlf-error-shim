@@ -40,7 +40,7 @@ func ResourceInfo(resType, resName, owner, desc string) detailOption {
 // 		codes.InvalidArgument,
 // 		err.Error(),
 // 		InvalidArgument(
-// 				"payment_id","should be int",
+// 				"user_id","should be int",
 // 				"name", "should be fill",
 // 		),
 // )

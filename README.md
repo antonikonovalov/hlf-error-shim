@@ -1,3 +1,1 @@
-allow use grpc/status for HL Fabric shim errors
-
-simply wrapper  
+Wrapper for `peer.Response`. See to tests
