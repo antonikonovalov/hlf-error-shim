@@ -26,7 +26,7 @@ func TestInvalidArgument(t *testing.T) {
 	)
 
 	if int32(http.StatusBadRequest) != resp.Status {
-		t.Errorf("unexpected resp.status %d != %d", int32(http.StatusBadRequest) != resp.Status)
+		t.Errorf("unexpected resp.status %d != %d", int32(http.StatusBadRequest), resp.Status)
 	}
 
 	expMessage := `{
@@ -73,7 +73,7 @@ func TestInvalidArgument(t *testing.T) {
 	)
 
 	if int32(http.StatusBadRequest) != respPb.Status {
-		t.Errorf("unexpected resp.status %d != %d", int32(http.StatusBadRequest) != respPb.Status)
+		t.Errorf("unexpected resp.status %d != %d", int32(http.StatusBadRequest), respPb.Status)
 	}
 
 	if "invalid user form" != respPb.Message {
@@ -165,7 +165,7 @@ func TestFromErr(t *testing.T) {
 
 	resp := FromErr(err)
 	if int32(http.StatusBadRequest) != resp.Status {
-		t.Errorf("unexpected resp.status %d != %d", int32(http.StatusBadRequest) != resp.Status)
+		t.Errorf("unexpected resp.status %d != %d", int32(http.StatusBadRequest), resp.Status)
 	}
 	if expMessage != resp.Message {
 		t.Errorf("unexpected resp.mesage\n %s\n !=\n %s", expMessage, resp.Message)
