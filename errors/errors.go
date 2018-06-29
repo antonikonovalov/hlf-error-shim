@@ -1,14 +1,14 @@
 package errors
 
 import (
-	pb "github.com/hyperledger/fabric/protos/peer"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"net/http"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
+	pb "github.com/hyperledger/fabric/protos/peer"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
-	"net/http"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type detailOption func() proto.Message
@@ -93,6 +93,21 @@ func New(c codes.Code, msg string, opts ...detailOption) pb.Response {
 	}
 
 	return fromStatus(statusResp)
+}
+
+func Err(c codes.Code, msg string, opts ...detailOption) error {
+	statusResp := status.New(c, msg)
+
+	if len(opts) > 0 {
+		details := make([]proto.Message, len(opts))
+		for i, opt := range opts {
+			details[i] = opt()
+		}
+
+		statusResp, _ = statusResp.WithDetails(details...)
+	}
+
+	return statusResp.Err()
 }
 
 func FromErr(err error) pb.Response {
