@@ -83,10 +83,6 @@ var (
 func New(c codes.Code, msg string, opts ...detailOption) pb.Response {
 	statusResp := status.New(c, msg)
 
-	resp := pb.Response{
-		Status: httpStatusFromCode(statusResp.Code()),
-	}
-
 	if len(opts) > 0 {
 		details := make([]proto.Message, len(opts))
 		for i, opt := range opts {
@@ -96,12 +92,25 @@ func New(c codes.Code, msg string, opts ...detailOption) pb.Response {
 		statusResp, _ = statusResp.WithDetails(details...)
 	}
 
-	resp.Payload, _ = proto.Marshal(statusResp.Proto())
+	return fromStatus(statusResp)
+}
+
+func FromErr(err error) pb.Response {
+	s, _ := status.FromError(err)
+	return fromStatus(s)
+}
+
+func fromStatus(s *status.Status) pb.Response {
+	resp := pb.Response{
+		Status: httpStatusFromCode(s.Code()),
+	}
+
+	resp.Payload, _ = proto.Marshal(s.Proto())
 
 	if !messageErrorFormatJson {
-		resp.Message = msg
+		resp.Message = s.Message()
 	} else {
-		resp.Message, _ = marhaler.MarshalToString(statusResp.Proto())
+		resp.Message, _ = marhaler.MarshalToString(s.Proto())
 	}
 
 	return resp

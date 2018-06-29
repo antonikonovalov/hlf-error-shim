@@ -113,3 +113,61 @@ func TestInvalidArgument(t *testing.T) {
 		t.Errorf("unexpected resp.payload\n %s\n \t!=\n %s", string(expPayload), string(respPb.Payload))
 	}
 }
+
+func TestFromErr(t *testing.T) {
+	statusResp := status.New(codes.InvalidArgument, "invalid user form")
+	statusResp, _ = statusResp.WithDetails(
+		&errdetails.BadRequest{
+			FieldViolations: []*errdetails.BadRequest_FieldViolation{
+				{
+					Field:       `Age`,
+					Description: `should be more that zero: -10`,
+				},
+				{
+					Field:       `PassportNumber`,
+					Description: `should be fill: ''`,
+				},
+				{
+					Field:       `Country`,
+					Description: `should be exists: 'OMEGA' not exists`,
+				},
+			},
+		},
+	)
+
+	err := statusResp.Err()
+
+	expMessage := `{
+    "code": 3,
+    "message": "invalid user form",
+    "details": [
+        {
+            "@type": "type.googleapis.com/google.rpc.BadRequest",
+            "fieldViolations": [
+                {
+                    "field": "Age",
+                    "description": "should be more that zero: -10"
+                },
+                {
+                    "field": "PassportNumber",
+                    "description": "should be fill: ''"
+                },
+                {
+                    "field": "Country",
+                    "description": "should be exists: 'OMEGA' not exists"
+                }
+            ]
+        }
+    ]
+}`
+
+	messageErrorFormatJson = true
+
+	resp := FromErr(err)
+	if int32(http.StatusBadRequest) != resp.Status {
+		t.Errorf("unexpected resp.status %d != %d", int32(http.StatusBadRequest) != resp.Status)
+	}
+	if expMessage != resp.Message {
+		t.Errorf("unexpected resp.mesage\n %s\n !=\n %s", expMessage, resp.Message)
+	}
+}
