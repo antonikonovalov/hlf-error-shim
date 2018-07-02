@@ -1,16 +1,31 @@
 package errors
 
 import (
-	"net/http"
+	"fmt"
 
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
-	pb "github.com/hyperledger/fabric/protos/peer"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"sync"
 )
+
+var (
+	texter = &proto.TextMarshaler{ExpandAny: true}
+)
+
+type statusError spb.Status
+
+func (se *statusError) Error() string {
+	p := (*spb.Status)(se)
+
+	errStr := fmt.Sprintf("invoke error: code = %s desc = %s", codes.Code(p.Code), p.GetMessage())
+	for _, d := range p.Details {
+		errStr += "\n" + texter.Text(d)
+	}
+
+	return errStr
+}
 
 type detailOption func() proto.Message
 
@@ -70,42 +85,7 @@ func InvalidArgument(fieldAndReasons ...string) detailOption {
 	}
 }
 
-var (
-	debug                  = false
-	messageErrorFormatJson = false
-	marhaler               = &jsonpb.Marshaler{
-		EmitDefaults: false,
-		EnumsAsInts:  false,
-		OrigName:     false,
-		Indent:       "    ",
-	}
-
-	lockConfig = &sync.Mutex{}
-)
-
-func Init(messageFormatJson bool) {
-	lockConfig.Lock()
-
-	messageErrorFormatJson = messageFormatJson
-
-	lockConfig.Unlock()
-}
-
-func New(c codes.Code, msg string, opts ...detailOption) pb.Response {
-	statusResp := status.New(c, msg)
-
-	if len(opts) > 0 {
-		details := make([]proto.Message, len(opts))
-		for i, opt := range opts {
-			details[i] = opt()
-		}
-
-		statusResp, _ = statusResp.WithDetails(details...)
-	}
-
-	return fromStatus(statusResp)
-}
-
+// Err wrapping error details to `error` interface
 func Err(c codes.Code, msg string, opts ...detailOption) error {
 	statusResp := status.New(c, msg)
 
@@ -118,67 +98,5 @@ func Err(c codes.Code, msg string, opts ...detailOption) error {
 		statusResp, _ = statusResp.WithDetails(details...)
 	}
 
-	return statusResp.Err()
-}
-
-func FromErr(err error) pb.Response {
-	s, _ := status.FromError(err)
-	return fromStatus(s)
-}
-
-func fromStatus(s *status.Status) pb.Response {
-	resp := pb.Response{
-		Status: httpStatusFromCode(s.Code()),
-	}
-
-	resp.Payload, _ = proto.Marshal(s.Proto())
-
-	if !messageErrorFormatJson {
-		resp.Message = s.Message()
-	} else {
-		resp.Message, _ = marhaler.MarshalToString(s.Proto())
-	}
-
-	return resp
-}
-
-func httpStatusFromCode(code codes.Code) int32 {
-	switch code {
-	case codes.OK:
-		return http.StatusOK
-	case codes.Canceled:
-		return http.StatusRequestTimeout
-	case codes.Unknown:
-		return http.StatusInternalServerError
-	case codes.InvalidArgument:
-		return http.StatusBadRequest
-	case codes.DeadlineExceeded:
-		return http.StatusGatewayTimeout
-	case codes.NotFound:
-		return http.StatusNotFound
-	case codes.AlreadyExists:
-		return http.StatusConflict
-	case codes.PermissionDenied:
-		return http.StatusForbidden
-	case codes.Unauthenticated:
-		return http.StatusUnauthorized
-	case codes.ResourceExhausted:
-		return http.StatusTooManyRequests
-	case codes.FailedPrecondition:
-		return http.StatusPreconditionFailed
-	case codes.Aborted:
-		return http.StatusConflict
-	case codes.OutOfRange:
-		return http.StatusBadRequest
-	case codes.Unimplemented:
-		return http.StatusNotImplemented
-	case codes.Internal:
-		return http.StatusInternalServerError
-	case codes.Unavailable:
-		return http.StatusServiceUnavailable
-	case codes.DataLoss:
-		return http.StatusInternalServerError
-	}
-
-	return http.StatusInternalServerError
+	return (*statusError)(statusResp.Proto())
 }
